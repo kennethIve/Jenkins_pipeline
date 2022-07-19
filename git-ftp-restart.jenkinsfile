@@ -1,0 +1,50 @@
+pipeline {
+    agent { label 'master' }
+
+    tools{
+        maven 'maven-3.8.1'
+        jdk 'open-jdk-11'
+    }
+
+    stages {
+        stage ('Initialize') {
+            steps {
+                sh '''
+                    echo "PATH = ${PATH}"
+                    echo "M2_HOME = ${M2_HOME}"
+                ''' 
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Source:') {
+            steps {
+                echo 'checkout source:'
+                checkout([$class: 'GitSCM', branches: [[name: '*/------']], extensions: [], userRemoteConfigs: [[credentialsId: '------', url: '------']]])
+            }
+        }
+
+        stage('Build Maven') {
+            steps {
+                sh 'mvn clean install'
+            }
+        }
+
+        stage('Upload To UAT Server') {
+            steps {
+                echo "upload start"
+                ftpPublisher alwaysPublishFromMaster: true, continueOnError: false, failOnError: false, publishers: [
+                    [configName: '------', transfers: [[asciiMode: false, cleanRemote: false, excludes: '', flatten: false, makeEmptyDirs: true, noDefaultExcludes: false, patternSeparator: '[, ]+', 
+                        remoteDirectory: '', remoteDirectorySDF: false, removePrefix: 'target/------', sourceFiles: 'target/------/**']], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false
+                    ]
+                ],masterNodeName: '',paramPublish: null
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Restart UAT'
+            httpRequest authentication: '------', responseHandle: 'NONE', url: '------', wrapAsMultipart: false
+        }
+    }
+}
